@@ -1,0 +1,2 @@
+- enable having two / more panels side by side
+- enable starting from any day
