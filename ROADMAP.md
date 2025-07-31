@@ -1,2 +1,4 @@
 - enable having two / more panels side by side
 - enable starting from any day
+- add a toggle to enable early repayment as much as possible or to disable it.
+- add message for divergence

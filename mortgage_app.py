@@ -123,6 +123,8 @@ def minimum_mortgage_repay_time_with_tracking(
             "total_paid": mortgage_amount - principal + total_interest_paid
         })
         time_passed = current_date - start_date
+        if time_passed.days > 365 * 60:
+            break
 
     return month_count, history, total_interest_paid
 
