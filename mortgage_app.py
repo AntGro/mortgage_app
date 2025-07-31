@@ -15,6 +15,7 @@ def minimum_mortgage_repay_time_with_tracking(
         mortgage_interest_rate: float,
         monthly_revenue: float,
         savings_interest_rate: float,
+        projection_years: float,
 ):
     """
     Simulates mortgage repayment over time and tracks monthly financial metrics.
@@ -37,6 +38,7 @@ def minimum_mortgage_repay_time_with_tracking(
         mortgage_interest_rate (float): Annual mortgage interest rate (e.g., 0.0492 for 4.92%).
         monthly_revenue (float): Monthly available income .
         savings_interest_rate (float): Annual interest rate for savings (e.g., 0.03 for 3%).
+        projection_years: track funds for that many years
 
     Returns:
         tuple:
@@ -60,6 +62,7 @@ def minimum_mortgage_repay_time_with_tracking(
 
     start_no_limit_allowance_date = date(current_date.year + n_years_with_allowance, current_date.month,
                                          current_date.day)
+    start_date = date(current_date.year, current_date.month, current_date.day)
     yearly_principal_snapshot = principal
     early_repay_used = 0.0
 
@@ -71,7 +74,9 @@ def minimum_mortgage_repay_time_with_tracking(
         "total_paid": mortgage_amount - principal + total_interest_paid
     })
 
-    while principal > 1e-5:
+    n_years = 0
+    time_passed = current_date - start_date
+    while principal > 1e-5 or (time_passed.days // 365) < projection_years:
         interest_this_month = principal * monthly_mortgage_rate
         total_interest_paid += interest_this_month
         principal += interest_this_month
@@ -117,6 +122,7 @@ def minimum_mortgage_repay_time_with_tracking(
             "interest_paid": total_interest_paid,
             "total_paid": mortgage_amount - principal + total_interest_paid
         })
+        time_passed = current_date - start_date
 
     return month_count, history, total_interest_paid
 
@@ -131,12 +137,13 @@ with st.sidebar:
     default_date = date(2025, 8, 1)
 
     # Let user pick a date
-    start_date_ = st.date_input("Start Date", default_date)
+    start_date_input = st.date_input("Start Date (must be 1st of month)", default_date)
 
-    # Check if selected date is the 1st
-    if start_date_.day != 1:
-        st.error("Can only select the 1st day of a month.")
-        start_date_ = st.date_input("Start Date", date(start_date_.year, start_date_.month + 1, 1))
+    if start_date_input.day != 1:
+        st.error("Please select the 1st day of a month to proceed.")
+        st.stop()  # prevent further execution
+
+    start_date_ = start_date_input
 
     mortgage_amount_ = st.number_input("Mortgage Amount ", value=125_000, step=1_000)
     monthly_payment_ = st.number_input("Monthly Payment ", value=850, step=50)
@@ -149,6 +156,7 @@ with st.sidebar:
 
     mortgage_interest_rate_ = st.slider("Mortgage Interest Rate (%)", 0.0, 10.0, 4.92, step=0.1) / 100
     savings_interest_rate_ = st.slider("Savings Interest Rate (%)", 0.0, 10.0, 3.0, step=0.1) / 100
+    projection_years_ = st.slider("Track your money evolution on how many years", 0, 50, 25)
 
 # Run simulation
 months, history_, total_interest = minimum_mortgage_repay_time_with_tracking(
@@ -161,6 +169,7 @@ months, history_, total_interest = minimum_mortgage_repay_time_with_tracking(
     mortgage_interest_rate=mortgage_interest_rate_,
     monthly_revenue=monthly_revenue_,
     savings_interest_rate=savings_interest_rate_,
+    projection_years=projection_years_
 )
 
 # Extract data for plotting
@@ -171,9 +180,15 @@ interests = [entry["interest_paid"] for entry in history_]
 
 # Plotly figure
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=dates, y=principals, mode="lines", name="📉 Principal Remaining"))
-fig.add_trace(go.Scatter(x=dates, y=savings_vals, mode="lines", name="💰 Savings"))
-fig.add_trace(go.Scatter(x=dates, y=interests, mode="lines", name="💸 Total Interest Paid"))
+fig.add_trace(
+    go.Scatter(x=dates, y=principals, mode="lines", name="📉 Principal Remaining", line=dict(width=3))
+)
+fig.add_trace(
+    go.Scatter(x=dates, y=savings_vals, mode="lines", name="💰 Savings", line=dict(width=3))
+)
+fig.add_trace(
+    go.Scatter(x=dates, y=interests, mode="lines", name="💸 Total Interest Paid", line=dict(width=3))
+)
 
 fig.update_layout(
     title="Mortgage Repayment Over Time",
@@ -185,7 +200,7 @@ fig.update_layout(
 )
 
 # Summary
-years, rem_months = divmod(months, 12)
+years, rem_months = divmod(len([p for p in principals if p > 0]), 12)
 col1, col2, col3 = st.columns(3)
 col1.metric("⏳ Duration", f"{months} months", f"{years}y {rem_months}m")
 col2.metric("💸 Total Interest Paid", f"{total_interest:,.2f} €")
