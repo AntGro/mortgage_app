@@ -1,1 +1,1 @@
-(Try it out)[https://mortgage-sim.streamlit.app]
+[Try it out](https://mortgage-sim.streamlit.app)
