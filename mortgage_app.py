@@ -152,9 +152,32 @@ with st.sidebar:
     monthly_revenue_ = st.number_input("Monthly Available Revenue ", value=3000, step=100)
     start_saving_ = st.number_input("Initial Savings ", value=5000, step=500)
 
-    early_repay_percent_ = st.slider("Early Repayment Allowance (%)", min_value=0.0, max_value=1.0, value=0.10,
-                                     step=0.01)
-    n_years_allowance_ = st.slider("Years With Early Repay Limit", 0, 10, 4)
+    # Early repayment toggles
+    early_repay_enabled = st.checkbox("Enable Early Repayment", value=True)
+
+    # Show early repayment settings, but freeze if not enabled
+    unlimited_repay_from_start = st.checkbox(
+        "Allow Full Early Repayment From Start", value=False, disabled=not early_repay_enabled
+    )
+
+    early_repay_percent_ = st.slider(
+        "Early Repayment Allowance (%)",
+        min_value=0.0, max_value=1.0, value=0.10, step=0.01,
+        disabled=not early_repay_enabled or unlimited_repay_from_start
+    )
+
+    n_years_allowance_ = st.slider(
+        "Years With Early Repay Limit", 0, 20, 4,
+        disabled=not early_repay_enabled or unlimited_repay_from_start
+    )
+
+    # Assign logic depending on settings
+    if not early_repay_enabled:
+        early_repay_percent_ = 0.0
+        n_years_allowance_ = 100  # effectively disables early repayment
+    elif unlimited_repay_from_start:
+        early_repay_percent_ = 1.0
+        n_years_allowance_ = 0
 
     mortgage_interest_rate_ = st.slider("Mortgage Interest Rate (%)", 0.0, 10.0, 4.92, step=0.1) / 100
     savings_interest_rate_ = st.slider("Savings Interest Rate (%)", 0.0, 10.0, 3.0, step=0.1) / 100
@@ -202,11 +225,12 @@ fig.update_layout(
 )
 
 # Summary
-years, rem_months = divmod(len([p for p in principals if p > 0]), 12)
+repay_months = len([p for p in principals if p > 0])
+years, rem_months = divmod(repay_months, 12)
 col1, col2, col3 = st.columns(3)
-col1.metric("⏳ Duration", f"{months} months", f"{years}y {rem_months}m")
-col2.metric("💸 Total Interest Paid", f"{total_interest:,.2f} €")
-col3.metric("💰 Final Savings", f"{savings_vals[-1]:,.2f} €")
+col1.metric("⏳ Duration", f"{repay_months} months", f"{years}y {rem_months}m")
+col2.metric("💸 Total Interest Paid", f"{total_interest:,.2f} £")
+col3.metric("💰 Final Savings", f"{savings_vals[-1]:,.2f} £")
 
 st.plotly_chart(fig, use_container_width=True)
 
